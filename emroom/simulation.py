@@ -1,7 +1,7 @@
+import heapq
 import json
 from functools import reduce
 from dataclasses import dataclass, field
-from queue import Empty, PriorityQueue
 
 from collections import Counter, defaultdict
 from typing import Callable, Mapping, Optional, Sequence, Type, TypeVar
@@ -12,6 +12,14 @@ T = TypeVar("T")
 
 @dataclass(order=True)
 class Event:
+    """
+    Holds a callback that is scheduled to happen at a point in time
+    hopefully in the future.
+
+    See "If the data elements are not comparable" in
+    https://docs.python.org/3/library/queue.html#queue.PriorityQueue
+    """
+
     time: int
     actor: "Actor" = field(compare=False)
     callable: Callable = field(compare=False)
@@ -42,15 +50,13 @@ class Simulation:
     actor_number_sequence: Counter
     time: int
     actors_by_class: defaultdict[Type["Actor"], list["Actor"]]
-
-    # TODO: we don't need synchronization, this may be overkill
-    events: PriorityQueue[Event]
+    heap: list[Event]
 
     def __init__(self):
         self.actor_number_sequence = Counter()
         self.time = 0
         self.actors_by_class = defaultdict(list)
-        self.events = PriorityQueue(maxsize=0)
+        self.heap = []
 
     def log(self, **kwargs):
         log_obj = dict(time=self.time)
@@ -80,17 +86,19 @@ class Simulation:
 
         time = self.time + time_delta
         self.log(actor=str(actor), state=actor.state, action="enqueue", _time=time, _action=callable.__name__)
-        self.events.put((Event(time, actor, callable, args, kwargs)))
+        heapq.heappush(self.heap, Event(time, actor, callable, args, kwargs))
 
     def run(self):
-        try:
-            while event := self.events.get_nowait():
-                assert event.time >= self.time, "The structure of time has changed (event occurs in the past)"
-                self.time = event.time
-                self.log(actor=str(event.actor), state=event.actor.state, action=event.callable.__name__)
-                event.callable(*event.args, **event.kwargs)
-        except Empty:
-            self.log(action="finished", actors=self.dump_actors())
+        while self.heap:
+            event = heapq.heappop(self.heap)
+
+            assert event.time >= self.time, "The structure of time has changed (event occurs in the past)"
+            self.time = event.time
+
+            self.log(actor=str(event.actor), state=event.actor.state, action=event.callable.__name__)
+            event.callable(*event.args, **event.kwargs)
+
+        self.log(action="finished", actors=self.dump_actors())
 
     def dump_actors(self):
         result = {}

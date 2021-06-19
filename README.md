@@ -19,8 +19,11 @@ No deps (just Python 3.9).
 
 ## TODO
 
-* [ ] Introduce logging levels, eg. `init` and `enqueue` probably need not be shown
+* [ ] Logging improvements
+    * [ ] Log levels or similar filter, eg. `init` and `enqueue` probably need not be shown in most cases
+    * [ ] Automatically `str` non-JSON-serializable input
 * [ ] Add an option to end the simulation at a specified time (now it runs forever unless it finishes)
+* [ ] Perhaps `simulation.run()` should be a generator that yields log events? (Now it just prints them)
 
 ## License
 
