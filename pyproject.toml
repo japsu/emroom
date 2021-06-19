@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+addopts = "--doctest-modules emroom/ examples/"
+
+[tool.black]
+line-length = 118
